@@ -14,18 +14,20 @@ struct ContentView: View {
     
     var body: some View {
         Group {
-                if !hasCompletedOnboarding {
-                    OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
-                } else if authViewModel.userSession == nil {
-                    LoginView()
+            if !hasCompletedOnboarding {
+                OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
+            } else if authViewModel.userSession == nil {
+                LoginView()
+            } else {
+                if let user = authViewModel.currentUser {
+                    HomeView(user: user)
+                        .transition(.opacity)
                 } else {
-                    if let user = authViewModel.currentUser {
-                        MainMapView(user: user)
-                    } else {
-                        ProgressView("Fetching your vibe...")
-                    }
+                    ProgressView("Fetching your profile...")
                 }
             }
+        }
+        .animation(.default, value: authViewModel.userSession)
     }
 }
 

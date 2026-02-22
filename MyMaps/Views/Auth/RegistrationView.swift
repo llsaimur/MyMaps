@@ -33,8 +33,8 @@ struct RegistrationView: View {
             ) {
                 viewModel.register(withEmail: email, password: password, username: username)
             }
-            .padding(.horizontal, 32) // THIS fixes the length
-            .padding(.top, 24)        // Gives it breathing room from the fields
+            .padding(.horizontal, 32)
+            .padding(.top, 24)
             
             Spacer()
             

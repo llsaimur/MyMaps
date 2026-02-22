@@ -27,23 +27,21 @@ struct OnboardingView: View {
             Spacer()
             
             Button {
-                            locationManager.requestLocationPermission()
-                        } label: {
-                            Text("Get Started")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(width: 300, height: 50)
-                                .background(Color.blue)
-                                .clipShape(Capsule())
-                        }
-                        .padding(.bottom, 40)
-                    }
-                    // CLEAN CODE: Listen for the status change here
-                    .onChange(of: locationManager.authorizationStatus) { newStatus in
-                        if newStatus != .notDetermined && newStatus != nil {
-                            // Once they pick 'Allow' or 'Deny', move forward
-                            hasCompletedOnboarding = true
-                        }
-                    }
+                locationManager.requestLocationPermission()
+            } label: {
+                Text("Get Started")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(width: 300, height: 50)
+                    .background(Color.blue)
+                    .clipShape(Capsule())
+            }
+            .padding(.bottom, 40)
+        }
+        .onChange(of: locationManager.authorizationStatus) { newStatus in
+            if newStatus != .notDetermined && newStatus != nil {
+                hasCompletedOnboarding = true
+            }
+        }
     }
 }
