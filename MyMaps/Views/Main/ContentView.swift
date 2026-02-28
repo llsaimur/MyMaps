@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import CoreData
 
 struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
@@ -20,7 +19,7 @@ struct ContentView: View {
                 LoginView()
             } else {
                 if let user = authViewModel.currentUser {
-                    HomeView(user: user)
+                    MainTabView()
                         .transition(.opacity)
                 } else {
                     ProgressView("Fetching your profile...")

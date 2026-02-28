@@ -46,12 +46,14 @@ struct HomeView: View {
                 }
                 .mapStyle(.standard(elevation: .realistic))
                 .onMapCameraChange { visibleRegion = $0.region }
-                .onTapGesture { screenPoint in
+                .onTapGesture { _ in
                     isSearchFocused = false
                     if previewPlace != nil { withAnimation { previewPlace = nil } }
                 }
             }
             .ignoresSafeArea()
+                    
+            
 
             VStack {
                 MapSearchOverlay(
@@ -86,8 +88,8 @@ struct HomeView: View {
             }
         }
         .onAppear {
-            locationManager.requestLocationPermission()
-            mapViewModel.listenForPosts()
+            locationManager.requestLocationPermission() 
+            mapViewModel.listenForFriendPosts()
         }
         .onChange(of: locationManager.userLocation) { old, new in
             if let loc = new, old == nil { moveToLocation(loc.coordinate) }
@@ -96,16 +98,9 @@ struct HomeView: View {
             CreatePostView(coordinate: selection.coordinate)
         }
         .sheet(item: $selectedPost) { post in
-            PostDetailView(
-                viewModel: PostDetailViewModel(post: post),
-                onUpdate: { updatedPost in
-                    if let index = mapViewModel.posts.firstIndex(where: { $0.id == updatedPost.id }) {
-                        mapViewModel.posts[index] = updatedPost
-                    }
-                }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            PostDetailView(viewModel: PostDetailViewModel(post: post), onUpdate: { _ in })
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
     
@@ -120,7 +115,8 @@ struct HomeView: View {
                 .font(.headline).padding(.vertical, 12).padding(.horizontal, 20)
                 .foregroundStyle(.white).background(Color.blue).clipShape(Capsule()).shadow(radius: 10)
         }
-        .padding(.trailing, 16).padding(.bottom, 30)
+        .padding(.trailing, 16)
+        .padding(.bottom, 65)
     }
     
     private func handleSearchSelection(_ item: MKMapItem) {

@@ -66,4 +66,13 @@ class PostRepository {
         
         try await db.collection("posts").document(postId).delete()
     }
+    
+    func fetchPosts(forUid uid: String) async throws -> [Post] {
+        let snapshot = try await db.collection("posts")
+            .whereField("authorId", isEqualTo: uid)
+            .order(by: "createdAt", descending: true)
+            .getDocuments()
+        
+        return snapshot.documents.compactMap { try? $0.data(as: Post.self) }
+    }
 }
