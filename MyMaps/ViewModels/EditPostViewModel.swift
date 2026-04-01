@@ -11,7 +11,7 @@ import SwiftUI
 @MainActor
 class EditPostViewModel: ObservableObject {
     @Published var rating: Int
-    @Published var selectedVibe: VibeType
+    @Published var selectedVibe: VibeCategory
     @Published var caption: String
     @Published var isSaving = false
     

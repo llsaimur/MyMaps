@@ -5,60 +5,54 @@
 //  Created by Saimur Rashid on 2/16/26.
 //
 
-
 import SwiftUI
 import MapKit
-import FirebaseFirestore
-import FirebaseAuth
 
 @MainActor
 class PostDetailViewModel: ObservableObject {
+
     @Published var post: Post
-    @Published var authorName: String = "Loading..."
+    @Published var authorName = "Loading..."
     @Published var showDeleteConfirmation = false
     @Published var isEditing = false
-    
-    private let db = Firestore.firestore()
-    private let repository = PostRepository()
-    
-    init(post: Post) {
+
+    var isOwner: Bool { post.authorId == currentUserId }
+
+    private let postRepository = PostRepository()
+    private let userRepository = UserRepository()
+    private let currentUserId: String
+
+    init(post: Post, currentUserId: String? = nil) {
         self.post = post
+        self.currentUserId = currentUserId ?? AuthViewModel.shared.userSession?.uid ?? ""
     }
-    
-    var isOwner: Bool {
-        guard let currentUid = Auth.auth().currentUser?.uid else { return false }
-        return currentUid == post.authorId
-    }
-    
+
     func fetchAuthorName() {
-        db.collection("users").document(post.authorId).getDocument { [weak self] snapshot, error in
-            DispatchQueue.main.async {
-                if let data = snapshot?.data(), let name = data["username"] as? String {
-                    self?.authorName = name
-                } else {
-                    self?.authorName = "Unknown Explorer"
-                }
+        Task {
+            do {
+                authorName = try await userRepository.fetchUsername(uid: post.authorId)
+            } catch {
+                authorName = "Unknown Explorer"
+                print("DEBUG PostDetailViewModel: fetchAuthorName — \(error.localizedDescription)")
             }
         }
     }
-    
+
     func deletePost(onSuccess: @escaping () -> Void) {
         Task {
             do {
-                try await repository.deletePost(postId: post.id)
+                try await postRepository.deletePost(postId: post.id)
                 onSuccess()
             } catch {
-                print("DEBUG: Failed to delete post - \(error.localizedDescription)")
+                print("DEBUG PostDetailViewModel: deletePost — \(error.localizedDescription)")
             }
         }
     }
-    
+
     func openInMaps() {
-        let coordinate = post.location.coordinate
-        let placemark = MKPlacemark(coordinate: coordinate)
-        let mapItem = MKMapItem(placemark: placemark)
-        mapItem.name = post.placeName
-        
+        let placemark = MKPlacemark(coordinate: post.coordinate)
+        let mapItem   = MKMapItem(placemark: placemark)
+        mapItem.name  = post.placeName
         mapItem.openInMaps(launchOptions: [
             MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving
         ])

@@ -6,104 +6,107 @@
 //
 
 import SwiftUI
-import FirebaseFirestore
 
 struct ExploreView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @StateObject private var viewModel = ExploreViewModel()
     @State private var searchText = ""
-    @State private var users = [User]()
-    @State private var listener: ListenerRegistration?
-    
-    @State private var followingState: [String: Bool] = [:]
-    
+
+    private var currentUserId: String { authViewModel.currentUser?.uid ?? "" }
+
     var body: some View {
         NavigationStack {
-            List(users, id: \.uid) { user in
-                HStack(spacing: 12) {
-                    NavigationLink(destination: ProfileView(viewModel: ProfileViewModel(user: user))) {
-                        HStack {
-                            Image(systemName: "person.circle.fill")
-                                .resizable()
-                                .frame(width: 40, height: 40)
-                                .foregroundStyle(.gray.opacity(0.3))
-                            
-                            VStack(alignment: .leading) {
-                                Text(user.username).font(.subheadline).bold()
-                                Text(user.email).font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
+            Group {
+                if viewModel.isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.displayedUsers.isEmpty {
+                    ContentUnavailableView(
+                        searchText.isEmpty ? "No Users Yet" : "No Results",
+                        systemImage: searchText.isEmpty ? "person.2" : "magnifyingglass",
+                        description: Text(
+                            searchText.isEmpty
+                                ? "Users who join will appear here."
+                                : "No users match \"\(searchText)\"."
+                        )
+                    )
+                } else {
+                    List(viewModel.displayedUsers, id: \.uid) { user in
+                        userRow(for: user)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     }
-                    
-                    Spacer()
-                    
-                    if !user.isCurrentUser {
-                        followButton(for: user)
-                    }
+                    .listStyle(.plain)
                 }
-                .padding(.vertical, 4)
             }
-            .navigationTitle("Search Vibes")
-            .searchable(text: $searchText, prompt: "Find friends...")
-            .listStyle(.plain)
-            .onChange(of: searchText) { _, newValue in
-                startSearching(query: newValue.lowercased())
+            .navigationTitle("People")
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search people..."
+            )
+            .onAppear {
+                viewModel.loadUsers(currentUserId: currentUserId)
+                if let user = authViewModel.currentUser {
+                    viewModel.syncFollowingIDs(from: user)
+                }
+            }
+            .onDisappear {
+                viewModel.clearSearch()
+            }
+            .onChange(of: authViewModel.currentUser) { _, user in
+                if let user {
+                    if viewModel.allUsers.isEmpty {
+                        viewModel.loadUsers(currentUserId: user.uid)
+                    }
+                    viewModel.syncFollowingIDs(from: user)
+                }
+            }
+            .onChange(of: searchText) { _, query in
+                if query.isEmpty {
+                    viewModel.clearSearch()
+                } else {
+                    viewModel.search(query: query.lowercased(), currentUserId: currentUserId)
+                }
             }
         }
     }
-    
-    @ViewBuilder
+
+    private func userRow(for user: User) -> some View {
+        HStack(spacing: 12) {
+            NavigationLink(destination: ProfileView(viewModel: ProfileViewModel(user: user))) {
+                HStack(spacing: 12) {
+                    UserAvatarView(profileImageUrl: user.profileImageUrl, size: 46)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(user.username)
+                            .font(.system(size: 15, weight: .semibold))
+                        Text(user.fullname)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            if user.uid != currentUserId {
+                followButton(for: user)
+            }
+        }
+    }
+
     private func followButton(for user: User) -> some View {
-        let isFollowing = followingState[user.uid] ?? false
-        
-        Button {
-            handleFollowTap(for: user, currentlyFollowing: isFollowing)
+        let isFollowing = viewModel.followingIDs.contains(user.uid)
+        return Button {
+            viewModel.toggleFollow(targetUserId: user.uid, currentUserId: currentUserId)
         } label: {
             Text(isFollowing ? "Following" : "Follow")
-                .font(.caption).bold()
-                .frame(width: 85, height: 30)
+                .font(.system(size: 13, weight: .semibold))
+                .frame(width: 90, height: 32)
                 .foregroundStyle(isFollowing ? Color.primary : Color.white)
-                .background(isFollowing ? Color.gray.opacity(0.2) : Color.blue)
-                .clipShape(Capsule())
+                .background(isFollowing ? Color.gray.opacity(0.15) : Color.blue)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
-    }
-    
-    private func handleFollowTap(for user: User, currentlyFollowing: Bool) {
-        Task {
-            followingState[user.uid] = !currentlyFollowing
-            HapticManager.trigger(.light)
-            
-            do {
-                if currentlyFollowing {
-                    try await SocialService.unfollow(uid: user.uid)
-                } else {
-                    try await SocialService.follow(uid: user.uid)
-                }
-            } catch {
-                followingState[user.uid] = currentlyFollowing
-            }
-        }
-    }
-    
-    private func startSearching(query: String) {
-        listener?.remove()
-        guard !query.isEmpty else { users = []; return }
-
-        listener = Firestore.firestore().collection("users")
-            .whereField("username", isGreaterThanOrEqualTo: query)
-            .whereField("username", isLessThanOrEqualTo: query + "\u{f8ff}")
-            .addSnapshotListener { snapshot, _ in
-                guard let documents = snapshot?.documents else { return }
-                let fetchedUsers = documents.compactMap { try? $0.data(as: User.self) }
-                self.users = fetchedUsers
-                
-                for user in fetchedUsers {
-                    Task {
-                        let following = try? await SocialService.checkIfFollowing(uid: user.uid)
-                        await MainActor.run {
-                            followingState[user.uid] = following ?? false
-                        }
-                    }
-                }
-            }
     }
 }

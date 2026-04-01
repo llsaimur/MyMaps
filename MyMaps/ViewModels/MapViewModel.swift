@@ -9,7 +9,6 @@ import SwiftUI
 import MapKit
 import Combine
 import FirebaseFirestore
-import FirebaseAuth
 
 struct SelectedLocation: Identifiable {
     let id = UUID()
@@ -21,61 +20,95 @@ class MapViewModel: ObservableObject {
 
     @Published var posts: [Post] = []
     @Published var selectedLocation: SelectedLocation?
-    
+    @Published var selectedCategory: VibeCategory? = nil
     @Published var searchText = ""
     @Published var searchResults: [MKMapItem] = []
-    
-    private let db = Firestore.firestore()
-    private let repository = PostRepository()
-    private var cancellables = Set<AnyCancellable>()
-    private var postListener: ListenerRegistration?
+
+    private let repository      = PostRepository()
+    private let followRepository = FollowRepository()
+    private let currentUserId: String
+
+    private var cancellables     = Set<AnyCancellable>()
+    private var postListener:   ListenerRegistration?
     private var followListener: ListenerRegistration?
-    
-    init() {
+
+    init(currentUserId: String) {
+        self.currentUserId = currentUserId
         setupSearchDebounce()
-        listenForPosts()
+        listenForFriendPosts()
     }
-    
-    
-    func listenForFriendPosts() {
-        guard let currentUid = Auth.auth().currentUser?.uid else { return }
-        
+
+    deinit {
+        postListener?.remove()
         followListener?.remove()
-        followListener = db.collection("users").document(currentUid).collection("user-following")
-            .addSnapshotListener { [weak self] snapshot, error in
-                guard let self = self else { return }
-                guard let documents = snapshot?.documents else { return }
-                
-                var idsToWatch = documents.map { $0.documentID }
-                idsToWatch.append(currentUid)
-
-                self.fetchPostsForIds(idsToWatch)
-            }
     }
 
-    private func fetchPostsForIds(_ ids: [String]) {
-        stopListening()
-        
-        guard !ids.isEmpty else { return }
-        
-        postListener = db.collection("posts")
-            .whereField("authorId", in: ids)
-            .addSnapshotListener { [weak self] querySnapshot, error in
-                guard let documents = querySnapshot?.documents else { return }
-                
-                Task { @MainActor in
-                    self?.posts = documents.compactMap { try? $0.data(as: Post.self) }
-                }
-            }
+    func updateFilter(to category: VibeCategory?) {
+        selectedCategory = category
+        HapticManager.trigger(.light)
+        if let category {
+            listenForGlobalCategory(category)
+        } else {
+            listenForFriendPosts()
+        }
     }
 
-    
+    private func listenForGlobalCategory(_ category: VibeCategory) {
+        stopPostListener()
+        followListener?.remove()
+        followListener = nil
+
+        postListener = repository.listenToPosts(vibe: category) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let fetched):
+                withAnimation(.spring()) { self.posts = fetched }
+            case .failure(let error):
+                print("DEBUG MapViewModel: listenForGlobalCategory — \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func listenForFriendPosts() {
+        guard !currentUserId.isEmpty else { return }
+        stopPostListener()
+        followListener?.remove()
+
+        followListener = followRepository.observeFollowingIDs(currentUserId: currentUserId) { [weak self] ids in
+            guard let self else { return }
+            guard !ids.isEmpty else {
+                self.posts = []
+                return
+            }
+            self.listenForPosts(byIds: ids)
+        }
+    }
+
+    private func listenForPosts(byIds ids: [String]) {
+        stopPostListener()
+        let queryIds = Array(ids.prefix(10))
+        postListener = repository.listenToPosts(byAuthorIds: queryIds) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let fetched):
+                withAnimation(.spring()) { self.posts = fetched }
+            case .failure(let error):
+                print("DEBUG MapViewModel: listenForPosts — \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func stopPostListener() {
+        postListener?.remove()
+        postListener = nil
+    }
+
     private func setupSearchDebounce() {
         $searchText
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
             .removeDuplicates()
             .sink { [weak self] text in
-                guard let self = self else { return }
+                guard let self else { return }
                 if text.isEmpty {
                     self.searchResults = []
                 } else {
@@ -84,48 +117,18 @@ class MapViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     private func performSearch(query: String) {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
-        
-        let search = MKLocalSearch(request: request)
-        search.start { [weak self] response, error in
-            guard let self = self else { return }
-            
-            if let error = error {
-                print("DEBUG: Search error - \(error.localizedDescription)")
+        MKLocalSearch(request: request).start { [weak self] response, error in
+            if let error {
+                print("DEBUG MapViewModel: search — \(error.localizedDescription)")
                 return
             }
-            
             Task { @MainActor in
-                self.searchResults = response?.mapItems ?? []
+                self?.searchResults = response?.mapItems ?? []
             }
         }
-    }
-    
-    
-    func listenForPosts() {
-        stopListening()
-        postListener = repository.listenToPosts { [weak self] result in
-            Task { @MainActor in
-                switch result {
-                case .success(let fetchedPosts):
-                    self?.posts = fetchedPosts
-                case .failure(let error):
-                    print("DEBUG: Error fetching posts - \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-    
-    func stopListening() {
-        postListener?.remove()
-        postListener = nil
-    }
-    
-    deinit {
-        postListener?.remove()
-        followListener?.remove()
     }
 }

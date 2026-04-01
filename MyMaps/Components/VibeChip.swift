@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct VibeChip: View {
-    let vibe: VibeType
+    let vibe: VibeCategory
     let isSelected: Bool
     let action: () -> Void
     

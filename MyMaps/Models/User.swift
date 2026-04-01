@@ -8,18 +8,20 @@
 
 import Foundation
 import FirebaseFirestore
-import FirebaseAuth
 
-struct User: Identifiable, Codable {
+struct User: Identifiable, Codable, Equatable {
     @DocumentID var id: String?
     let uid: String
     var username: String
+    var fullname: String
     let email: String
     var profileImageUrl: String?
     var followingCount: Int
     var followerCount: Int
-    
-    var isCurrentUser: Bool {
-        return Auth.auth().currentUser?.uid == uid
+    var followingIDs: [String] = []
+    var followerIDs: [String] = []
+
+    func isCurrentUser(id currentUserId: String) -> Bool {
+        uid == currentUserId
     }
 }

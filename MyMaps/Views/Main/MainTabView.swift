@@ -24,6 +24,11 @@ struct MainTabView: View {
                         Label("Explore", systemImage: "magnifyingglass")
                     }
                 
+                DiscoveryView()
+                    .tabItem {
+                        Label("Discover", systemImage: "sparkles")
+                    }
+                
                 NavigationStack {
                     ProfileView(viewModel: ProfileViewModel(user: user))
                 }

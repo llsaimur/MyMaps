@@ -31,6 +31,7 @@
 		4082D03C2F2E685000E53D9E /* FirebaseMLModelDownloader in Frameworks */ = {isa = PBXBuildFile; productRef = 4082D03B2F2E685000E53D9E /* FirebaseMLModelDownloader */; };
 		4082D03E2F2E685000E53D9E /* FirebasePerformance in Frameworks */ = {isa = PBXBuildFile; productRef = 4082D03D2F2E685000E53D9E /* FirebasePerformance */; };
 		4082D0402F2E685000E53D9E /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 4082D03F2F2E685000E53D9E /* FirebaseRemoteConfig */; };
+		40C8C81F2F537870004AF36F /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 40C8C81E2F537870004AF36F /* SDWebImageSwiftUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -73,6 +74,7 @@
 				4082D03C2F2E685000E53D9E /* FirebaseMLModelDownloader in Frameworks */,
 				4082D0132F2E65B500E53D9E /* FirebaseStorageCombine-Community in Frameworks */,
 				4082D0242F2E685000E53D9E /* FirebaseAILogic in Frameworks */,
+				40C8C81F2F537870004AF36F /* SDWebImageSwiftUI in Frameworks */,
 				4082D03A2F2E685000E53D9E /* FirebaseMessaging in Frameworks */,
 				4082D00B2F2E65B500E53D9E /* FirebaseCrashlytics in Frameworks */,
 				4082D0302F2E685000E53D9E /* FirebaseFirestoreCombine-Community in Frameworks */,
@@ -161,6 +163,7 @@
 				4082D03B2F2E685000E53D9E /* FirebaseMLModelDownloader */,
 				4082D03D2F2E685000E53D9E /* FirebasePerformance */,
 				4082D03F2F2E685000E53D9E /* FirebaseRemoteConfig */,
+				40C8C81E2F537870004AF36F /* SDWebImageSwiftUI */,
 			);
 			productName = MyMaps;
 			productReference = 4082CFEE2F2E649000E53D9E /* MyMaps.app */;
@@ -192,6 +195,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				4082D0032F2E65B500E53D9E /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				40C8C81D2F537870004AF36F /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4082CFEF2F2E649000E53D9E /* Products */;
@@ -439,6 +443,14 @@
 				minimumVersion = 12.8.0;
 			};
 		};
+		40C8C81D2F537870004AF36F /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SDWebImage/SDWebImageSwiftUI.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.1.4;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -561,6 +573,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4082D0032F2E65B500E53D9E /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseRemoteConfig;
+		};
+		40C8C81E2F537870004AF36F /* SDWebImageSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 40C8C81D2F537870004AF36F /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */;
+			productName = SDWebImageSwiftUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

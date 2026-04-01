@@ -10,15 +10,18 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
-    
+    @State private var showSplash = true
+
     var body: some View {
         Group {
-            if !hasCompletedOnboarding {
+            if showSplash {
+                SplashView(isActive: $showSplash)
+            } else if !hasCompletedOnboarding {
                 OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
             } else if authViewModel.userSession == nil {
                 LoginView()
             } else {
-                if let user = authViewModel.currentUser {
+                if let _ = authViewModel.currentUser {
                     MainTabView()
                         .transition(.opacity)
                 } else {

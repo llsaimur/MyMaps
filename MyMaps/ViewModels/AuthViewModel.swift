@@ -5,102 +5,145 @@
 //  Created by Saimur Rashid on 1/31/26.
 //
 
-
 import SwiftUI
-import Firebase
 import FirebaseAuth
 import FirebaseFirestore
-import Combine
 
+@MainActor
 class AuthViewModel: ObservableObject {
+
     @Published var userSession: FirebaseAuth.User?
     @Published var currentUser: User?
     @Published var errorMessage: String?
-    
+    @Published var isLoading = false
+
     static let shared = AuthViewModel()
-    
+
+    private let authService      = AuthService()
+    private let userRepository   = UserRepository()
+    private var authStateHandle: AuthStateDidChangeListenerHandle?
+    private var userListener: ListenerRegistration?
+
+
     init() {
-        setupAuthListener()
-    }
-    
-    private func setupAuthListener() {
-        Auth.auth().addStateDidChangeListener { [weak self] _, user in
-            self?.userSession = user
-            if let uid = user?.uid {
-                self?.fetchCurrentUser(withUid: uid)
+        authStateHandle = authService.addAuthStateListener { [weak self] user in
+            Task { @MainActor in
+                self?.userSession = user
+                if let uid = user?.uid {
+                    self?.startListeningToUser(uid: uid)
+                } else {
+                    self?.stopListeningToUser()
+                }
             }
         }
     }
-    
-    // MARK: - Authentication
-    
+
+    deinit {
+        if let handle = authStateHandle {
+            authService.removeAuthStateListener(handle)
+        }
+        userListener?.remove()
+    }
+
+
     func login(withEmail email: String, password: String) {
-        self.errorMessage = nil
-        
-        Auth.auth().signIn(withEmail: email, password: password) { [weak self] _, error in
-            if let error = error {
-                self?.errorMessage = error.localizedDescription
-                return
+        errorMessage = nil
+        isLoading = true
+        Task {
+            do {
+                try await authService.signIn(email: email, password: password)
+            } catch {
+                errorMessage = error.localizedDescription
             }
-            self?.errorMessage = nil
+            isLoading = false
         }
     }
-    
-    func register(withEmail email: String, password: String, username: String) {
-        self.errorMessage = nil
-        
-        if username.count < 3 {
-            self.errorMessage = "Username too short."
+
+    func register(withEmail email: String, password: String, username: String, fullname: String) {
+        errorMessage = nil
+        guard username.count >= 3 else {
+            errorMessage = "Username must be at least 3 characters."
             return
         }
+        isLoading = true
+        Task {
+            do {
+                let uid = try await authService.createUser(email: email, password: password)
+                try await userRepository.createUserDocument(
+                    uid: uid,
+                    email: email,
+                    username: username,
+                    fullname: fullname
+                )
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isLoading = false
+        }
+    }
 
-        Auth.auth().createUser(withEmail: email, password: password) { [weak self] result, error in
-            if let error = error {
-                self?.errorMessage = error.localizedDescription
-                return
-            }
-            
-            guard let uid = result?.user.uid else { return }
-            self?.uploadUserData(uid: uid, email: email, username: username)
-        }
-    }
-    
-    private func uploadUserData(uid: String, email: String, username: String) {
-        let data: [String: Any] = [
-            "email": email,
-            "username": username.lowercased(),
-            "uid": uid,
-            "followingCount": 0,
-            "followerCount": 0
-        ]
-        
-        Firestore.firestore().collection("users").document(uid).setData(data) { [weak self] error in
-            if let error = error {
-                self?.errorMessage = "Database error: \(error.localizedDescription)"
-            } else {
-                self?.errorMessage = nil
-            }
-        }
-    }
-    
-    func fetchCurrentUser(withUid uid: String) {
-        Firestore.firestore().collection("users").document(uid).addSnapshotListener { snapshot, _ in
-            guard let user = try? snapshot?.data(as: User.self) else { return }
-            self.currentUser = user
-        }
-    }
-    
     func signOut() {
+        stopListeningToUser()
         do {
-            try Auth.auth().signOut()
-            
-            self.userSession = nil
-            self.currentUser = nil
-            self.errorMessage = nil
-            
+            try authService.signOut()
+            userSession = nil
+            currentUser = nil
+            errorMessage = nil
         } catch {
-            print("DEBUG: Failed to sign out with error: \(error.localizedDescription)")
-            self.errorMessage = "Error signing out. Please try again."
+            errorMessage = "Error signing out."
         }
+    }
+
+    func deleteAccount() async {
+        guard let uid = userSession?.uid else { return }
+        do {
+            try await userRepository.deleteUserDocument(uid: uid)
+            try await authService.deleteCurrentUser()
+            stopListeningToUser()
+            userSession = nil
+            currentUser = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+
+    func updateProfile(fullname: String, username: String) {
+        guard let uid = userSession?.uid else { return }
+        Task {
+            do {
+                try await userRepository.updateProfile(uid: uid, fullname: fullname, username: username)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func uploadProfileImage(_ image: UIImage) async {
+        guard let uid = userSession?.uid,
+              let imageData = image.jpegData(compressionQuality: 0.6) else { return }
+        do {
+            let urlString = try await userRepository.uploadProfileImage(uid: uid, imageData: imageData)
+            try await userRepository.updateProfileImageUrl(uid: uid, urlString: urlString)
+            currentUser?.profileImageUrl = urlString
+        } catch {
+            print("DEBUG AuthViewModel: Profile image upload failed — \(error.localizedDescription)")
+        }
+    }
+
+
+    private func startListeningToUser(uid: String) {
+        // Remove any stale listener before starting a fresh one.
+        userListener?.remove()
+        userListener = userRepository.observeUser(uid: uid) { [weak self] user in
+            Task { @MainActor in
+                self?.currentUser = user
+            }
+        }
+    }
+
+    private func stopListeningToUser() {
+        userListener?.remove()
+        userListener = nil
     }
 }

@@ -5,92 +5,80 @@
 //  Created by Saimur Rashid on 2/1/26.
 //
 
-
 import SwiftUI
 import MapKit
 import PhotosUI
-import FirebaseAuth
 import FirebaseFirestore
 
 @MainActor
 class CreatePostViewModel: ObservableObject {
+
     @Published var uiState: FormState = .idle
-    @Published var isPostEnabled: Bool = false
-    
+    @Published var isPostEnabled = false
+
     @Published var selectedImage: UIImage? { didSet { validateInput() } }
-    @Published var detectedPlace: Place? { didSet { validateInput() } }
-    @Published var caption: String = "" { didSet { validateInput() } }
-    @Published var rating: Int = 0 { didSet { validateInput() } }
-    
-    @Published var selectedVibe: VibeType = .CHILL
+    @Published var detectedPlace: Place?   { didSet { validateInput() } }
+    @Published var caption = ""            { didSet { validateInput() } }
+    @Published var rating  = 0             { didSet { validateInput() } }
+
+    @Published var selectedVibe: VibeCategory = .CHILL
     @Published var showSearch = false
     @Published var searchResults: [MKMapItem] = []
-    @Published var searchQuery: String = ""
+    @Published var searchQuery = ""
 
-    private var compressedImageData: Data?
     var initialCoordinate: CLLocationCoordinate2D?
-    
-    private let locationService = LocationService()
-    private let repository = PostRepository()
-    private let db = Firestore.firestore()
 
-    
+    private let locationService  = LocationService()
+    private let postRepository   = PostRepository()
+    private let userRepository   = UserRepository()
+    private var compressedImageData: Data?
+
     func fetchLocationDetails(for coordinate: CLLocationCoordinate2D) {
-        self.uiState = .loading
-        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        
+        uiState = .loading
         Task {
-            let place = await locationService.getPlaceDetails(coords: location)
-            
-            await MainActor.run {
-                self.detectedPlace = place
-                self.uiState = .idle
-                
-                if place == nil {
-                    self.showSearch = true
-                }
-                self.validateInput()
-            }
+            let place = await locationService.getPlaceDetails(
+                coords: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            )
+            detectedPlace = place
+            uiState = .idle
+            if place == nil { showSearch = true }
+            validateInput()
         }
     }
 
     func selectPlace(_ item: MKMapItem) {
         let coords = item.placemark.coordinate
-        self.detectedPlace = Place(
+        detectedPlace = Place(
             name: item.name ?? "Selected Location",
             address: item.placemark.title ?? "",
             latitude: coords.latitude,
             longitude: coords.longitude
         )
-        self.showSearch = false
-        self.searchQuery = ""
-        self.searchResults = []
-        self.validateInput()
+        showSearch = false
+        searchQuery = ""
+        searchResults = []
+        validateInput()
     }
 
     func performSearch() {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = searchQuery
-        
         if let coord = initialCoordinate {
             request.region = MKCoordinateRegion(
                 center: coord,
                 span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
             )
         }
-        
-        let search = MKLocalSearch(request: request)
-        search.start { response, _ in
-            self.searchResults = response?.mapItems ?? []
+        MKLocalSearch(request: request).start { [weak self] response, _ in
+            self?.searchResults = response?.mapItems ?? []
         }
     }
 
-    
     func handlePhotoProcessing(image: UIImage) {
-        self.selectedImage = image
+        selectedImage = image
         compressImage(image)
     }
-    
+
     private func compressImage(_ image: UIImage) {
         Task.detached(priority: .userInitiated) {
             if let data = image.jpegData(compressionQuality: 0.7) {
@@ -102,52 +90,48 @@ class CreatePostViewModel: ObservableObject {
         }
     }
 
-    
+
     func validateInput() {
-        let hasImage = selectedImage != nil && compressedImageData != nil
-        let hasPlace = detectedPlace != nil
+        let hasImage   = selectedImage != nil && compressedImageData != nil
+        let hasPlace   = detectedPlace != nil
         let hasContent = !caption.trimmingCharacters(in: .whitespaces).isEmpty && rating > 0
-        
-        self.isPostEnabled = hasImage && hasPlace && hasContent
+        isPostEnabled  = hasImage && hasPlace && hasContent
     }
-    
-    func submitPost() async {
-        guard let currentUID = Auth.auth().currentUser?.uid,
+
+
+    func submitPost(currentUserId: String) async {
+        guard !currentUserId.isEmpty,
               let imageData = compressedImageData,
               let place = detectedPlace else { return }
-        
-        self.uiState = .uploading
-        
+
+        uiState = .uploading
         do {
-            let userDoc = try await db.collection("users").document(currentUID).getDocument()
-            let username = userDoc.data()?["username"] as? String ?? "Explorer"
-            
+            let username = try await userRepository.fetchUsername(uid: currentUserId)
+
+            let profileImageUrl = AuthViewModel.shared.currentUser?.profileImageUrl
             let newPost = Post(
-                authorId: currentUID,
+                authorId:  currentUserId,
                 authorName: username,
-                imageUrl: "",
-                location: GeoPoint(latitude: place.latitude, longitude: place.longitude),
+                authorProfileImageUrl: profileImageUrl,
+                imageUrl:  "",
+                location:  GeoPoint(latitude: place.latitude, longitude: place.longitude),
                 placeName: place.name,
-                address: place.address,
-                vibe: selectedVibe,
-                caption: caption,
+                address:   place.address,
+                vibe:      selectedVibe,
+                caption:   caption,
                 createdAt: Date(),
-                rating: rating
+                rating:    rating
             )
-            
-            try await repository.createPost(post: newPost, imageData: imageData)
-            self.uiState = .success
+            try await postRepository.createPost(post: newPost, imageData: imageData)
+            uiState = .success
         } catch {
-            print("CreatePost Error: \(error.localizedDescription)")
-            self.uiState = .error
+            print("DEBUG CreatePostViewModel: submitPost — \(error.localizedDescription)")
+            uiState = .error
         }
     }
 }
 
+
 enum FormState {
-    case idle
-    case loading
-    case uploading
-    case success
-    case error
+    case idle, loading, uploading, success, error
 }

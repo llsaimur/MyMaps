@@ -35,7 +35,8 @@ class PostRepository {
             vibe: post.vibe,
             caption: post.caption,
             createdAt: post.createdAt,
-            rating: post.rating
+            rating: post.rating,
+            likes: []
         )
         
         try db.collection("posts").addDocument(from: postWithUrl)
@@ -72,7 +73,53 @@ class PostRepository {
             .whereField("authorId", isEqualTo: uid)
             .order(by: "createdAt", descending: true)
             .getDocuments()
-        
+
         return snapshot.documents.compactMap { try? $0.data(as: Post.self) }
+    }
+
+
+    func listenToPosts(
+        vibe: VibeCategory,
+        limit: Int = 100,
+        completion: @escaping (Result<[Post], Error>) -> Void
+    ) -> ListenerRegistration {
+        db.collection("posts")
+            .whereField("vibe", isEqualTo: vibe.rawValue)
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit)
+            .addSnapshotListener { snapshot, error in
+                if let error { completion(.failure(error)); return }
+                let posts = snapshot?.documents.compactMap { try? $0.data(as: Post.self) } ?? []
+                completion(.success(posts))
+            }
+    }
+
+
+    func listenToPosts(
+        byAuthorIds ids: [String],
+        completion: @escaping (Result<[Post], Error>) -> Void
+    ) -> ListenerRegistration {
+        db.collection("posts")
+            .whereField("authorId", in: ids)
+            .addSnapshotListener { snapshot, error in
+                if let error { completion(.failure(error)); return }
+                let posts = snapshot?.documents.compactMap { try? $0.data(as: Post.self) } ?? []
+                completion(.success(posts))
+            }
+    }
+
+
+    func listenToPosts(
+        byAuthorId uid: String,
+        completion: @escaping (Result<[Post], Error>) -> Void
+    ) -> ListenerRegistration {
+        db.collection("posts")
+            .whereField("authorId", isEqualTo: uid)
+            .addSnapshotListener { snapshot, error in
+                if let error { completion(.failure(error)); return }
+                let posts = (snapshot?.documents.compactMap { try? $0.data(as: Post.self) } ?? [])
+                    .sorted { $0.createdAt > $1.createdAt }
+                completion(.success(posts))
+            }
     }
 }

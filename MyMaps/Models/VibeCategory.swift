@@ -1,18 +1,23 @@
 //
-//  VibeType.swift
+//  VibeCategory.swift
 //  MyMaps
 //
-//  Created by Saimur Rashid on 2/1/26.
+//  Created by Saimur Rashid on 2/28/26.
 //
+
 
 import SwiftUI
 
-enum VibeType: String, Codable, CaseIterable {
-    case ROMANTIC, CHILL, LOWKEY, BUSINESS
+
+enum VibeCategory: String, Codable, CaseIterable {
+    case LIVELY
+    case CHILL
+    case LOWKEY
+    case BUSINESS
     
     var color: Color {
         switch self {
-        case .ROMANTIC: return .pink
+        case .LIVELY: return .orange
         case .CHILL: return .blue
         case .LOWKEY: return .secondary
         case .BUSINESS: return .black
@@ -21,10 +26,14 @@ enum VibeType: String, Codable, CaseIterable {
     
     var icon: String {
         switch self {
-        case .ROMANTIC: return "heart.fill"
+        case .LIVELY: return "flame.fill"
         case .CHILL: return "leaf.fill"
         case .LOWKEY: return "eye.slash.fill"
         case .BUSINESS: return "briefcase.fill"
         }
+    }
+    
+    var displayName: String {
+        self.rawValue.capitalized
     }
 }
