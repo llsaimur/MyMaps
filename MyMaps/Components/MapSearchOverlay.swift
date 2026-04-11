@@ -13,8 +13,8 @@ struct MapSearchOverlay: View {
     @ObservedObject var viewModel: MapViewModel
     @FocusState.Binding var isSearchFocused: Bool
     let user: User
-    var onSignOut: () -> Void
-    
+    var onAvatarTapped: () -> Void
+
     var body: some View {
         HStack(spacing: 12) {
             HStack {
@@ -22,7 +22,7 @@ struct MapSearchOverlay: View {
                 TextField("Search for a place...", text: $viewModel.searchText)
                     .focused($isSearchFocused)
                     .autocorrectionDisabled()
-                
+
                 if !viewModel.searchText.isEmpty {
                     Button {
                         viewModel.searchText = ""
@@ -36,14 +36,11 @@ struct MapSearchOverlay: View {
             .background(.ultraThinMaterial)
             .cornerRadius(12)
             .shadow(color: .black.opacity(0.1), radius: 5)
-            
-            Button(action: onSignOut) {
-                Text(user.username.prefix(1).uppercased())
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.blue)
-                    .clipShape(Circle())
+
+            Button(action: onAvatarTapped) {
+                UserAvatarView(profileImageUrl: user.profileImageUrl, size: 44)
+                    .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 2))
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
             }
         }
         .padding(.horizontal)

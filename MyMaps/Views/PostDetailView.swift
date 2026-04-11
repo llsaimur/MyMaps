@@ -103,29 +103,18 @@ struct PostDetailView: View {
 private extension PostDetailView {
 
     var headerSection: some View {
-        let authorUser = User(
-            uid: viewModel.post.authorId,
-            username: viewModel.authorName,
-            fullname: "",
-            email: "",
-            followingCount: 0,
-            followerCount: 0
-        )
-        return HStack(spacing: 10) {
-            NavigationLink(destination: ProfileView(viewModel: ProfileViewModel(user: authorUser))) {
-                HStack(spacing: 10) {
-                    UserAvatarView(profileImageUrl: viewModel.post.authorProfileImageUrl, size: 36)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(viewModel.authorName)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.primary)
-                        Text(viewModel.post.placeName)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
+        HStack(spacing: 10) {
+            HStack(spacing: 10) {
+                UserAvatarView(profileImageUrl: viewModel.authorProfileImageUrl, size: 36)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(viewModel.authorName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text(viewModel.post.placeName)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .buttonStyle(.plain)
             Spacer()
         }
         .padding(.horizontal, 12)

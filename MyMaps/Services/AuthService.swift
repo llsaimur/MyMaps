@@ -38,6 +38,10 @@ struct AuthService {
         Auth.auth().removeStateDidChangeListener(handle)
     }
 
+    func sendPasswordReset(email: String) async throws {
+        try await Auth.auth().sendPasswordReset(withEmail: email)
+    }
+
     var currentUserId: String? {
         Auth.auth().currentUser?.uid
     }

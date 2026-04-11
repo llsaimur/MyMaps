@@ -82,6 +82,17 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    func sendPasswordReset(email: String) async -> Bool {
+        errorMessage = nil
+        do {
+            try await authService.sendPasswordReset(email: email)
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     func signOut() {
         stopListeningToUser()
         do {

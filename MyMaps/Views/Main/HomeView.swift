@@ -25,6 +25,7 @@ struct HomeView: View {
     @State private var selectedPost: Post? = nil
     @State private var detailPost: Post? = nil
     @State private var previewPlace: MKMapItem? = nil
+    @State private var showProfile = false
     @FocusState private var isSearchFocused: Bool
     
     var body: some View {
@@ -67,7 +68,7 @@ struct HomeView: View {
                     viewModel: mapViewModel,
                     isSearchFocused: $isSearchFocused,
                     user: user,
-                    onSignOut: { authViewModel.signOut() }
+                    onAvatarTapped: { showProfile = true }
                 )
                 
                 if isSearchFocused && !mapViewModel.searchResults.isEmpty {
@@ -106,6 +107,12 @@ struct HomeView: View {
         }
         .onChange(of: locationManager.userLocation) { old, new in
             if let loc = new, old == nil { moveToLocation(loc.coordinate) }
+        }
+        .sheet(isPresented: $showProfile) {
+            NavigationStack {
+                ProfileView(viewModel: ProfileViewModel(user: user))
+                    .environmentObject(authViewModel)
+            }
         }
         .sheet(item: $mapViewModel.selectedLocation) { selection in
             CreatePostView(coordinate: selection.coordinate)

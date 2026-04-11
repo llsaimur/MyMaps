@@ -17,15 +17,18 @@ struct FeedRow: View {
     @State private var commentListener: ListenerRegistration?
     @State private var isLiked: Bool
     @State private var likeCount: Int
+    @State private var resolvedAvatarUrl: String?
 
     private let likeRepository    = LikeRepository()
     private let commentRepository = CommentRepository()
+    private let userRepository    = UserRepository()
 
     init(post: Post) {
         self.post = post
         let currentUserId = AuthViewModel.shared.userSession?.uid ?? ""
-        self._isLiked   = State(initialValue: post.isLiked(by: currentUserId))
-        self._likeCount = State(initialValue: post.likes.count)
+        self._isLiked          = State(initialValue: post.isLiked(by: currentUserId))
+        self._likeCount        = State(initialValue: post.likes.count)
+        self._resolvedAvatarUrl = State(initialValue: post.authorProfileImageUrl)
     }
 
     var body: some View {
@@ -46,7 +49,10 @@ struct FeedRow: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
-        .onAppear  { setupCommentListener() }
+        .onAppear {
+            setupCommentListener()
+            fetchAvatarIfNeeded()
+        }
         .onDisappear { commentListener?.remove() }
         .onChange(of: post.likes.count) { _, newValue in likeCount = newValue }
     }
@@ -56,23 +62,12 @@ private extension FeedRow {
 
     var headerSection: some View {
         HStack(spacing: 10) {
-            let authorUser = User(
-                uid: post.authorId,
-                username: post.authorName,
-                fullname: "",
-                email: "",
-                followingCount: 0,
-                followerCount: 0
-            )
-            NavigationLink(destination: ProfileView(viewModel: ProfileViewModel(user: authorUser))) {
-                HStack(spacing: 10) {
-                    UserAvatarView(profileImageUrl: post.authorProfileImageUrl, size: 34)
-                    Text(post.authorName)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.primary)
-                }
+            HStack(spacing: 10) {
+                UserAvatarView(profileImageUrl: resolvedAvatarUrl, size: 34)
+                Text(post.authorName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
             }
-            .buttonStyle(.plain)
 
             Text(post.placeName)
                 .font(.system(size: 12))
@@ -181,6 +176,15 @@ private extension FeedRow {
                 currentUserId: currentUserId,
                 currentlyLiked: !isLiked
             )
+        }
+    }
+
+    func fetchAvatarIfNeeded() {
+        guard resolvedAvatarUrl == nil else { return }
+        Task {
+            if let user = try? await userRepository.fetchUser(uid: post.authorId) {
+                resolvedAvatarUrl = user.profileImageUrl
+            }
         }
     }
 

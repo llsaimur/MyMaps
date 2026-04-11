@@ -65,7 +65,10 @@ struct LoginView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 24)
 
-                    Button { } label: {
+                    NavigationLink {
+                        ForgotPasswordView()
+                            .navigationBarBackButtonHidden(true)
+                    } label: {
                         Text("Forgot password?")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.blue)

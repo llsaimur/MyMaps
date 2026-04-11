@@ -25,15 +25,7 @@ struct DiscoveryView: View {
                     ScrollView {
                         LazyVStack(spacing: 25) {
                             ForEach(viewModel.discoveryPosts) { post in
-                                NavigationLink(
-                                    destination: PostDetailView(
-                                        viewModel: PostDetailViewModel(post: post),
-                                        onUpdate: { _ in }
-                                    )
-                                ) {
-                                    FeedRow(post: post)
-                                }
-                                .buttonStyle(.plain)
+                                FeedRow(post: post)
                             }
                         }
                         .padding(.top, 12)

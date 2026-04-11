@@ -13,6 +13,7 @@ class PostDetailViewModel: ObservableObject {
 
     @Published var post: Post
     @Published var authorName = "Loading..."
+    @Published var authorProfileImageUrl: String?
     @Published var showDeleteConfirmation = false
     @Published var isEditing = false
 
@@ -25,12 +26,18 @@ class PostDetailViewModel: ObservableObject {
     init(post: Post, currentUserId: String? = nil) {
         self.post = post
         self.currentUserId = currentUserId ?? AuthViewModel.shared.userSession?.uid ?? ""
+        // Seed from denormalized field; fetchAuthorInfo() will fill gaps for older posts
+        self.authorProfileImageUrl = post.authorProfileImageUrl
     }
 
     func fetchAuthorName() {
         Task {
             do {
-                authorName = try await userRepository.fetchUsername(uid: post.authorId)
+                let user = try await userRepository.fetchUser(uid: post.authorId)
+                authorName = user.username
+                if authorProfileImageUrl == nil {
+                    authorProfileImageUrl = user.profileImageUrl
+                }
             } catch {
                 authorName = "Unknown Explorer"
                 print("DEBUG PostDetailViewModel: fetchAuthorName — \(error.localizedDescription)")
