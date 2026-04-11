@@ -97,62 +97,6 @@ Components      — Reusable SwiftUI subviews
 
 ---
 
-## Project Structure
-
-```
-MyMaps/
-├── Models/
-│   ├── Post.swift
-│   ├── User.swift
-│   ├── Comment.swift
-│   ├── WishlistItem.swift
-│   └── VibeCategory.swift
-├── ViewModels/
-│   ├── AuthViewModel.swift
-│   ├── MapViewModel.swift
-│   ├── DiscoveryViewModel.swift
-│   ├── ProfileViewModel.swift
-│   ├── PostDetailViewModel.swift
-│   ├── CreatePostViewModel.swift
-│   ├── ExploreViewModel.swift
-│   ├── CommentsViewModel.swift
-│   ├── FriendWishlistViewModel.swift
-│   └── UserListViewModel.swift
-├── Views/
-│   ├── Auth/
-│   │   ├── LoginView.swift
-│   │   ├── RegistrationView.swift
-│   │   ├── ForgotPasswordView.swift
-│   │   └── OnboardingView.swift
-│   ├── Main/
-│   │   ├── MainTabView.swift
-│   │   ├── HomeView.swift
-│   │   └── ContentView.swift
-│   ├── DiscoveryView.swift
-│   ├── ExploreView.swift
-│   ├── ProfileView.swift
-│   ├── PostDetailView.swift
-│   ├── CreatePostView.swift
-│   └── ...
-├── Components/
-│   ├── FeedRow.swift
-│   ├── UserAvatarView.swift
-│   ├── MapSearchOverlay.swift
-│   ├── CommentsView.swift
-│   └── ...
-└── Services/
-    ├── AuthService.swift
-    ├── PostRepository.swift
-    ├── UserRepository.swift
-    ├── FollowRepository.swift
-    ├── LikeRepository.swift
-    ├── CommentRepository.swift
-    ├── WishlistRepository.swift
-    └── WishlistService.swift
-```
-
----
-
 ## Setup
 
 ### Prerequisites
@@ -172,9 +116,3 @@ MyMaps/
 3. Add your `GoogleService-Info.plist` to the `MyMaps/` target folder (not tracked in git)
 
 4. Build and run on a simulator or device
-
----
-
-## Course
-
-420-DM6-AS — Mobile Application Development
